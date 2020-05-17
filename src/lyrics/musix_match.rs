@@ -1,29 +1,15 @@
 use reqwest;
 use scraper::{Html, Selector};
 
+use super::*;
+
 const MUSIX_MATCH_URI: &'static str = "https://www.musixmatch.com";
 const MUSIX_MATCH_SEARCH_URI: &'static str = "https://www.musixmatch.com/search";
 const MUSIX_MATCH_SEARCH_TRACK_URI_SELECTOR: &'static str = "#search-all-results > .main-panel > .box > .box-content .track-card > meta[itemprop=\"url\"]";
 const MUSIX_MATCH_LYRICS_SEGMENT_SELECTOR: &'static str = ".mxm-lyrics__content > span";
 
-trait LyricsFetcher {
-    fn fetch_lyrics(&self, song: &SongDescriptor) -> Result<String, String>;
-}
-
 #[derive(Debug)]
-enum SongUri {
-    MusixMatchUri(String)
-}
-
-#[derive(Debug)]
-struct SongDescriptor {
-    name: String,
-    artist: String,
-    uri: Option<SongUri>,
-}
-
-#[derive(Debug)]
-struct MusixMatchLyricsFetcher {}
+pub struct MusixMatchLyricsFetcher {}
 
 impl MusixMatchLyricsFetcher {
     pub fn new() -> Self {
