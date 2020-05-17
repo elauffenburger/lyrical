@@ -26,24 +26,25 @@ impl MusixMatchLyricsFetcher {
                 let search_uri = format!("{}/{} {}", MUSIX_MATCH_SEARCH_URI, song.name, song.artist);
 
                 let search_result = reqwest::blocking::get(&search_uri)
-                    .unwrap()
-                    .text()
-                    .map(|result| Html::parse_document(&result))
-                    .unwrap();
+                    .map_err(|err| format!("Failed to retrieve search content for song \"{:?}\": {}", song, err))
+                    .and_then(|resp| {
+                        resp.text()
+                            .map_err(|err| format!("Failed to extract response body when searching for song \"{:?}\": {}", song, err))
+                    })
+                    .map(|html| Html::parse_document(&html))?;
 
                 let result_url_meta_selector = Selector::parse(MUSIX_MATCH_SEARCH_TRACK_URI_SELECTOR)
-                    .unwrap();
+                    .map_err(|err| format!("Failed to parse selector for musix match search track uri selector for song \"{:?}\": {:?}", song, err))?;
 
-                let result_url = search_result
+                let uri = search_result
                     .select(&result_url_meta_selector)
                     .next()
-                    .map(|element_ref| element_ref.value())
-                    .unwrap()
-                    .attr("content")
-                    .map(|uri| format!("{}{}", MUSIX_MATCH_URI, uri))
-                    .unwrap();
-
-                Ok(result_url)
+                    .and_then(|element_ref| element_ref.value().attr("content"));
+                
+                match uri {
+                    Some(uri) => Ok(format!("{}{}", MUSIX_MATCH_URI, uri)),
+                    None => Err(format!("Failed to find a search result for song \"{:?}\"", song))
+                }
             }
         }
     }
@@ -54,13 +55,12 @@ impl LyricsFetcher for MusixMatchLyricsFetcher {
         let uri = self.get_song_uri(song)?;
 
         let content = reqwest::blocking::get(&uri)
-            .unwrap()
-            .text()
+            .and_then(|resp| resp.text())
             .map(|html| Html::parse_document(&html))
-            .unwrap();
+            .map_err(|err| format!("Failed to parse song lyrics for song \"{:?}\": {}", song, err))?;
 
         let segments_selector = Selector::parse(MUSIX_MATCH_LYRICS_SEGMENT_SELECTOR)
-            .unwrap();
+            .map_err(|err| format!("failed to parse MusixMatch lyrics segment selector: {:?}", err))?;
 
         let lyrics = content.select(&segments_selector)
             .map(|element_ref| element_ref.inner_html())
@@ -68,9 +68,12 @@ impl LyricsFetcher for MusixMatchLyricsFetcher {
                 None => Some(lyrics_segment),
                 Some(acc) => Some(format!("{}\n{}", acc, lyrics_segment)) 
             })
-            .unwrap();
+            .map(|lyrics| lyrics.to_string());
 
-        Ok(lyrics.to_string())
+        match lyrics {
+            Some(lyrics) => Ok(lyrics),
+            None => Err(format!("Something went unexpected wrong while fetching lyrics for song \"{:?}\"", song))
+        }
     }
 }
 

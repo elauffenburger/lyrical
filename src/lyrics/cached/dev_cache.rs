@@ -13,6 +13,8 @@ type HashMapCache = HashMap<SongDescriptor, String>;
 
 static mut CACHE: Option<Rc<RefCell<HashMapCache>>> = None;
 
+const CACHE_LOCATION: &'static str = "./cache/lyrics.json";
+
 pub struct DevCache {
     cache: Rc<RefCell<HashMap<SongDescriptor, String>>>,
 }
@@ -23,7 +25,7 @@ impl DevCache {
             match &CACHE {
                 Some(cache) => cache.clone(),
                 None => {
-                    let new_cache = Self::make_cache("./cache/lyrics-cache.json");
+                    let new_cache = Self::make_cache(CACHE_LOCATION);
 
                     CACHE = Some(new_cache.clone());
                     new_cache
@@ -40,7 +42,16 @@ impl DevCache {
                 let mut serialized = String::new();
                 file.read_to_string(&mut serialized).unwrap();
 
-                let cache: HashMap<SongDescriptor, String> = serde_json::from_str(&serialized)
+                let cache = serde_json::from_str::<HashMap<String, String>>(&serialized)
+                    .map(|cache_with_serialized_keys| 
+                        cache_with_serialized_keys
+                            .into_iter()
+                            .fold(HashMap::new(), |mut acc, (key, value)| {
+                                acc.insert(serde_json::from_str(&key).unwrap(), value);
+
+                                acc
+                            })
+                    )
                     .unwrap();
 
                 Rc::new(RefCell::new(cache))
@@ -70,7 +81,7 @@ impl Cache for DevCache {
 
         let write_back_result = serde_json::to_string(&stringify_map_keys(&cache))
             .map(|serialized_cache| {
-                File::open("./cache/lyrics-cache.json")
+                File::create(CACHE_LOCATION)
                     .map(|mut file| {
                         println!("writing cache to disk...");
 
@@ -115,9 +126,8 @@ mod test {
     }
 
     #[test]
-    #[ignore]
     fn can_load_cache() {
-        let cache = DevCache::make_cache("../../../test_data/cached/test_cache_temp.json");
+        let cache = DevCache::make_cache("./test_data/cached/test_cache_temp.json");
 
         let key = SongDescriptor{ name: "foo".to_string(), artist: "bar".to_string(), uri: None };
         let value = "foo bar baz".to_string();
