@@ -2,9 +2,12 @@ use std::collections::HashMap;
 
 use regex;
 
-pub fn count_words<'a>(src: String) -> HashMap<String, i32> {
-    let allowed_word_regex = regex::Regex::new("[0-9a-zA-Z]+").unwrap();
-    let punctuation_regex = regex::Regex::new("(\r?\n)|(,)").unwrap();
+pub type WordCounts = HashMap<String, i32>;
+
+// TODO: look through word count results and see if there are some anomalies.
+pub fn count_words<'a>(src: String) -> WordCounts {
+    let allowed_word_regex = regex::Regex::new(r"[0-9a-zA-Z]+").unwrap();
+    let punctuation_regex = regex::Regex::new(r"(\r?\n)|([-.!?,()])").unwrap();
 
     punctuation_regex.replace_all(&src, " ")
         .split(" ")
@@ -33,9 +36,17 @@ mod test {
     use super::*;
     use crate::utils::*;
 
+    macro_rules! count_test {
+        ($input:expr, {$($key:expr => $value:expr),* $(,)?}) => {
+            assert_eq!(count_words($input.to_string()), stringify_map_keys(&hashmap!{
+                $($key => $value),*
+            }));
+        };
+    }
+
     #[test]
     fn can_count_simple_content() {
-        assert_eq!(count_words("hello world i am a str and i am proud".to_string()), stringify_map_keys(&hashmap!{
+        count_test!("hello world i am a str and i am proud", {
             "hello" => 1,
             "world" => 1,
             "i" => 2,
@@ -44,12 +55,12 @@ mod test {
             "str"=> 1,
             "and" => 1,
             "proud" => 1
-        }));
+        })
     }
 
     #[test]
     fn strips_newlines_correctly() {
-        assert_eq!(count_words("hello world\ni am a\nstr and i am proud".to_string()), stringify_map_keys(&hashmap!{
+        count_test!("hello world\ni am a\nstr and i am proud", {
             "hello" => 1,
             "world" => 1,
             "i" => 2,
@@ -58,22 +69,47 @@ mod test {
             "str"=> 1,
             "and" => 1,
             "proud" => 1
-        }));
+        });
     }
 
     #[test]
     fn lowercases_words() {
-        assert_eq!(count_words("Hello World world hello".to_string()), stringify_map_keys(&hashmap!{
+        count_test!("Hello World world hello", {
             "hello" => 2,
             "world" => 2,
-        }));
+        });
     }
 
     #[test]
-    fn strips_punctuation() {
-        assert_eq!(count_words("Hello, - world hello,".to_string()), stringify_map_keys(&hashmap!{
+    fn strips_commas() {
+        count_test!("Hello, world hello,", {
             "hello" => 2,
             "world" => 1,
-        }));
+        });
+    }
+
+    #[test]
+    fn strips_dashes() {
+        count_test!("Hello - world -hello", { "hello" => 2, "world" => 1, });
+    }
+
+    #[test]
+    fn strips_periods() {
+        count_test!("Hello . world .hello", { "hello" => 2, "world" => 1, });
+    }
+
+    #[test]
+    fn strips_parens() {
+        count_test!("Hello ( ) (world )hello", { "hello" => 2, "world" => 1, });
+    }
+    
+    #[test]
+    fn strips_bangs() {
+        count_test!("Hello ! !world hello!", { "hello" => 2, "world" => 1, });
+    }
+
+    #[test]
+    fn strips_questions() {
+        count_test!("Hello ? ?world hello?", { "hello" => 2, "world" => 1, });
     }
 }
