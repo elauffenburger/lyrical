@@ -19,26 +19,40 @@ macro_rules! make_cache {
 
 static mut CACHE: Option<Rc<RefCell<HashMap<SongDescriptor, String>>>> = None;
 
-struct CachedLyricsFetcher<'a> {
+pub struct DevCache {
     cache: Rc<RefCell<HashMap<SongDescriptor, String>>>,
-    fallback: &'a dyn LyricsFetcher,
 }
 
-impl<'a> CachedLyricsFetcher<'a> {
-    pub fn new(fallback: &'a dyn LyricsFetcher) -> Self {
-        let instance_cache = unsafe {
+impl DevCache {
+    pub fn new() -> Self {
+        let cache = unsafe {
             match &CACHE {
                 Some(cache) => cache.clone(),
                 None => {
-                    let new_cache = make_cache!("../../cached/lyrics-cache.json");
+                    let new_cache = make_cache!("../../../cached/lyrics-cache.json");
 
                     CACHE = Some(new_cache.clone());
                     new_cache
                 }
             }
         };
-        
-        CachedLyricsFetcher { cache: instance_cache, fallback }
+
+        DevCache { cache }
+    }
+}
+
+impl Cache for DevCache {
+    fn save(&mut self, song: &SongDescriptor, lyrics: String) -> Result<(), String> {
+        println!("{}: {}", &serde_json::to_string(song).unwrap(), &lyrics);
+
+        Ok(())
+    }
+
+    fn load(&self, song: &SongDescriptor) -> Result<Option<String>, String> {
+        match self.cache.borrow().get(song) {
+            Some(lyrics) => Ok(Some(String::from(lyrics))),
+            None => Ok(None)
+        }
     }
 }
 
@@ -46,8 +60,6 @@ impl<'a> CachedLyricsFetcher<'a> {
 mod test {
     use std::fs::File;
     use std::io::prelude::*;
-
-    use maplit::hashmap;
 
     use super::*;
 
@@ -69,7 +81,7 @@ mod test {
     #[test]
     #[ignore]
     fn can_load_cache() {
-        let cache = make_cache!("../../test_data/cached/test_cache_temp.json");
+        let cache = make_cache!("../../../test_data/cached/test_cache_temp.json");
 
         let key = SongDescriptor{ name: "foo".to_string(), artist: "bar".to_string(), uri: None };
         let value = "foo bar baz".to_string();

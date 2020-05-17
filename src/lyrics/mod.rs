@@ -20,5 +20,8 @@ pub struct SongDescriptor {
 }
 
 pub fn make_lyrics_fetcher() -> impl LyricsFetcher {
-    musix_match::MusixMatchLyricsFetcher{}
+    let fetcher = musix_match::MusixMatchLyricsFetcher{};
+    let cache = cached::dev_cache::DevCache::new();
+
+    cached::CachedLyricsFetcher::new(fetcher, cache)
 }
