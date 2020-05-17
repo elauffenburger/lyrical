@@ -1,3 +1,4 @@
+extern crate clap;
 #[macro_use]
 extern crate maplit;
 extern crate regex;
@@ -11,20 +12,64 @@ mod utils;
 mod word_count;
 
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
+
+use clap::{Arg, App, ArgMatches};
+
+use lyrics::{LyricsFetcher, SongDescriptor};
 
 fn main() {
-    // TODO: make this an input.
-    let songs = vec![];
+    let matches = App::new("Lyrics")
+        .version("0.1")
+        .author("Eric Lauffenburger <elauffenburger@gmail.com>")
+        .arg(Arg::with_name("json_file")
+            .short("f")
+            .long("json-file")
+            .value_name("JSON_FILE")
+            .takes_value(true)
+            .conflicts_with("json")
+            .help("Sets the json file to use as input"))
+        .arg(Arg::with_name("json")
+            .short("j")
+            .long("json")
+            .value_name("JSON")
+            .conflicts_with("json_file")
+            .help("Sets the json to use as input"))
+        .get_matches();
+
+    let songs = get_songs_to_fetch(&matches).unwrap();
 
     print_word_counts_for_songs(songs);
 }
 
-fn print_word_counts_for_songs(songs: Vec<lyrics::SongDescriptor>) {
-    let fetcher = lyrics::make_lyrics_fetcher();
+fn get_songs_to_fetch(matches: &ArgMatches) -> Result<Vec<SongDescriptor>, String> {
+    let json = matches.value_of("json")
+        .map(|json| json.to_string())
+        .or_else(|| 
+            matches.value_of("json_file")
+                .map(|json_file_path|
+                    File::open(json_file_path)
+                        .map(|mut file| {
+                            let mut json = String::new();
+                            file.read_to_string(&mut json).unwrap();
+
+                            json
+                        })
+                        .unwrap()
+                )
+        )
+        .unwrap();
+
+    Ok(serde_json::from_str::<Vec<SongDescriptor>>(&json).unwrap())
+}
+
+fn print_word_counts_for_songs(songs: Vec<SongDescriptor>) {
+    let mut fetcher = lyrics::make_lyrics_fetcher();
 
     let results = songs.into_iter()
         .map(|song| {
-            let count = get_word_count_for_song(&fetcher, &song);
+            let count = get_word_count_for_song(&mut fetcher, &song);
 
             (song, count)
         });
@@ -37,7 +82,7 @@ fn print_word_counts_for_songs(songs: Vec<lyrics::SongDescriptor>) {
     }
 }
 
-fn get_word_count_for_song(fetcher: &dyn lyrics::LyricsFetcher, song: &lyrics::SongDescriptor) -> Result<HashMap<String, i32>, String> {
+fn get_word_count_for_song(fetcher: &mut dyn LyricsFetcher, song: &SongDescriptor) -> Result<HashMap<String, i32>, String> {
     fetcher.fetch_lyrics(song)
         .map(|lyrics| word_count::count_words(lyrics))
 }
@@ -52,14 +97,14 @@ mod test {
     }
 
     impl lyrics::LyricsFetcher for MockLyricsFetcher {
-        fn fetch_lyrics(&self, _song: &lyrics::SongDescriptor) -> Result<String, String> {
+        fn fetch_lyrics(&mut self, _song: &lyrics::SongDescriptor) -> Result<String, String> {
             Ok(self.lyrics.clone())
         }
     }
 
     #[test]
     fn can_get_word_count_for_song() {
-        let fetcher = MockLyricsFetcher { lyrics: include_str!("../test_data/songs/house_of_fire.txt").to_string() };
+        let mut fetcher = MockLyricsFetcher { lyrics: include_str!("../test_data/songs/house_of_fire.txt").to_string() };
 
         let song = lyrics::SongDescriptor {
             name: "House of Fire".to_string(),
@@ -67,9 +112,9 @@ mod test {
             uri: None
         };
 
-        let count = get_word_count_for_song(&fetcher, &song);
+        let count = get_word_count_for_song(&mut fetcher, &song);
 
-        assert_eq!(count, Ok(stringify_map(hashmap!{
+        assert_eq!(count, Ok(stringify_map_keys(&hashmap!{
             "'cause" => 2,
             "i" => 16,
             "i'm" => 2,

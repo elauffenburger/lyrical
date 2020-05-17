@@ -35,7 +35,7 @@ mod test {
 
     #[test]
     fn can_count_simple_content() {
-        assert_eq!(count_words("hello world i am a str and i am proud".to_string()), stringify_map(hashmap!{
+        assert_eq!(count_words("hello world i am a str and i am proud".to_string()), stringify_map_keys(&hashmap!{
             "hello" => 1,
             "world" => 1,
             "i" => 2,
@@ -49,7 +49,7 @@ mod test {
 
     #[test]
     fn strips_newlines_correctly() {
-        assert_eq!(count_words("hello world\ni am a\nstr and i am proud".to_string()), stringify_map(hashmap!{
+        assert_eq!(count_words("hello world\ni am a\nstr and i am proud".to_string()), stringify_map_keys(&hashmap!{
             "hello" => 1,
             "world" => 1,
             "i" => 2,
@@ -63,7 +63,7 @@ mod test {
 
     #[test]
     fn lowercases_words() {
-        assert_eq!(count_words("Hello World world hello".to_string()), stringify_map(hashmap!{
+        assert_eq!(count_words("Hello World world hello".to_string()), stringify_map_keys(&hashmap!{
             "hello" => 2,
             "world" => 2,
         }));
@@ -71,7 +71,7 @@ mod test {
 
     #[test]
     fn strips_punctuation() {
-        assert_eq!(count_words("Hello, - world hello,".to_string()), stringify_map(hashmap!{
+        assert_eq!(count_words("Hello, - world hello,".to_string()), stringify_map_keys(&hashmap!{
             "hello" => 2,
             "world" => 1,
         }));

@@ -50,7 +50,7 @@ impl MusixMatchLyricsFetcher {
 }
 
 impl LyricsFetcher for MusixMatchLyricsFetcher {
-    fn fetch_lyrics(&self, song: &SongDescriptor) -> Result<String, String> {
+    fn fetch_lyrics(&mut self, song: &SongDescriptor) -> Result<String, String> {
         let uri = self.get_song_uri(song)?;
 
         let content = reqwest::blocking::get(&uri)
