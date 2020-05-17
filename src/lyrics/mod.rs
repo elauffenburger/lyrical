@@ -1,15 +1,18 @@
+use serde::{Serialize, Deserialize};
+
 mod musix_match;
+mod cached;
 
 pub trait LyricsFetcher {
     fn fetch_lyrics(&self, song: &SongDescriptor) -> Result<String, String>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub enum SongUri {
     MusixMatchUri(String)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct SongDescriptor {
     pub name: String,
     pub artist: String,

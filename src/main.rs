@@ -3,6 +3,8 @@ extern crate maplit;
 extern crate regex;
 extern crate reqwest;
 extern crate scraper;
+#[macro_use]
+extern crate serde;
 extern crate tokio;
 
 mod lyrics;
