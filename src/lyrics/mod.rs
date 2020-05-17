@@ -28,6 +28,7 @@ impl ToString for SongDescriptor {
 pub fn make_lyrics_fetcher() -> impl LyricsFetcher {
     let fetcher = musix_match::MusixMatchLyricsFetcher::new();
     let cache = cached::dev_cache::DevCache::new(
+        // TODO: make this configurable via args.
         cached::dev_cache::DevCacheOptionsBuilder::default()
             .write_eagerly(false)
             .build()
@@ -37,6 +38,7 @@ pub fn make_lyrics_fetcher() -> impl LyricsFetcher {
     cached::CachedLyricsFetcher::new(
         fetcher, 
         cache, 
+        // TODO: make this configurable via args.
         cached::CachedLyricsFetcherOptionsBuilder::default()
             .cache_failure_as_empty_string(true)
             .build()
