@@ -8,14 +8,21 @@ pub trait Cache {
     fn write_back(&mut self) -> Result<(), String>;
 }
 
+#[derive(Default, Builder)]
+#[builder(setter(into))]
+pub struct CachedLyricsFetcherOptions {
+    cache_failure_as_empty_string: bool,
+}
+
 pub struct CachedLyricsFetcher<T: LyricsFetcher, C: Cache> {
     cache: C, 
     fallback: T,
+    options: CachedLyricsFetcherOptions
 }
 
 impl<T: LyricsFetcher, C: Cache> CachedLyricsFetcher<T, C> {
-    pub fn new(fallback: T, cache: C) -> Self {
-        CachedLyricsFetcher { cache, fallback }
+    pub fn new(fallback: T, cache: C, options: CachedLyricsFetcherOptions) -> Self {
+        CachedLyricsFetcher { cache, fallback, options }
     }
 }
 
@@ -24,10 +31,20 @@ impl<T: LyricsFetcher, C: Cache> LyricsFetcher for CachedLyricsFetcher<T, C> {
         match self.cache.load(song)? {
             Some(lyrics) => Ok(lyrics),
             None => {
-                let lyrics = self.fallback.fetch_lyrics(song)?;
-                self.cache.save(song, lyrics.clone())?;
+                match self.fallback.fetch_lyrics(song) {
+                    Ok(lyrics) => {
+                        self.cache.save(song, lyrics.clone())?;
 
-                Ok(lyrics)
+                        Ok(lyrics)
+                    },
+                    err @ Err(_) => {
+                        if self.options.cache_failure_as_empty_string {
+                            self.cache.save(song, String::new())?;
+                        }
+
+                        err
+                    }
+                }
             }
         }
     }

@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::rc::Rc;
 
@@ -15,12 +15,19 @@ static mut CACHE: Option<Rc<RefCell<HashMapCache>>> = None;
 
 const CACHE_LOCATION: &'static str = "./cache/lyrics.json";
 
+#[derive(Default, Builder, Debug)]
+#[builder(setter(into))]
+pub struct DevCacheOptions {
+    write_eagerly: bool,
+}
+
 pub struct DevCache {
-    cache: Rc<RefCell<HashMap<SongDescriptor, String>>>,
+    cache: Rc<RefCell<HashMapCache>>,
+    options: DevCacheOptions,
 }
 
 impl DevCache {
-    pub fn new() -> Self {
+    pub fn new(options: DevCacheOptions) -> Self {
         let cache = unsafe {
             match &CACHE {
                 Some(cache) => cache.clone(),
@@ -33,11 +40,13 @@ impl DevCache {
             }
         };
 
-        DevCache { cache }
+        DevCache { cache, options }
     }
 
     fn make_cache<'a>(path: &'a str) -> Rc<RefCell<HashMapCache>> {
-        File::open(path)
+        OpenOptions::new()
+            .read(true)
+            .open(path)
             .map(|mut file| {
                 let mut serialized = String::new();
                 file.read_to_string(&mut serialized).unwrap();
@@ -64,6 +73,10 @@ impl Cache for DevCache {
     fn save(&mut self, song: &SongDescriptor, lyrics: String) -> Result<(), String> {
         self.cache.borrow_mut().insert(song.clone(), lyrics);
 
+        if self.options.write_eagerly {
+            self.write_back()?;
+        }
+
         Ok(())
     }
 
@@ -81,12 +94,15 @@ impl Cache for DevCache {
 
         let write_back_result = serde_json::to_string(&stringify_map_keys(&cache))
             .map(|serialized_cache| {
-                File::create(CACHE_LOCATION)
+                OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(CACHE_LOCATION)
                     .map(|mut file| {
                         println!("writing cache to disk...");
 
                         file.write_all(serialized_cache.as_bytes())
-                            .map(|_| println!("cahe written to disk!"))
+                            .map(|_| println!("cache written to disk!"))
                             .unwrap()
                     })
                     .unwrap()

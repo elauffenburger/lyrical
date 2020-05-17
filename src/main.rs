@@ -1,5 +1,7 @@
 extern crate clap;
 #[macro_use]
+extern crate derive_builder;
+#[macro_use]
 extern crate maplit;
 extern crate regex;
 extern crate reqwest;
