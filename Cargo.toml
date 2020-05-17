@@ -1,0 +1,10 @@
+[package]
+name = "lyrics"
+version = "0.1.0"
+authors = ["Eric <elauffenburger@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+reqwest = { version = "0.10", features = ["json", "blocking"] }
+tokio = { version = "0.2", features = ["full"] }
+scraper = "0.12"
