@@ -79,7 +79,8 @@ mod test {
     use super::*;
 
     #[test]
-    pub fn can_fetch_music_match_song_uri_without_explicit_uri() {
+    #[ignore]
+    pub fn integration_can_fetch_music_match_song_uri_without_explicit_uri() {
         let result = MusixMatchLyricsFetcher::new().get_song_uri(&SongDescriptor{
             name: "House of fire".to_string(),
             artist: "Dave Rodgers".to_string(),
@@ -90,7 +91,8 @@ mod test {
     }
 
     #[test]
-    pub fn can_fetch_music_match_song_with_explicit_uri() {
+    #[ignore]
+    pub fn integration_can_fetch_music_match_song_with_explicit_uri() {
         let result = MusixMatchLyricsFetcher::new().fetch_lyrics(&SongDescriptor{
             name: String::new(),
             artist: String::new(),
