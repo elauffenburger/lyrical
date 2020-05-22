@@ -9,7 +9,7 @@ use serde_json;
 use crate::utils::stringify_map_keys;
 use super::*;
 
-type HashMapCache = HashMap<SongDescriptor, String>;
+type HashMapCache = HashMap<SongDescriptor, CacheEntry>;
 
 static mut CACHE: Option<Rc<RefCell<HashMapCache>>> = None;
 
@@ -51,7 +51,7 @@ impl DevCache {
                 let mut serialized = String::new();
                 file.read_to_string(&mut serialized).unwrap();
 
-                let cache = serde_json::from_str::<HashMap<String, String>>(&serialized)
+                let cache = serde_json::from_str::<HashMap<String, CacheEntry>>(&serialized)
                     .map(|cache_with_serialized_keys| 
                         cache_with_serialized_keys
                             .into_iter()
@@ -70,8 +70,8 @@ impl DevCache {
 }
 
 impl Cache for DevCache {
-    fn save(&mut self, song: &SongDescriptor, lyrics: String) -> Result<(), String> {
-        self.cache.borrow_mut().insert(song.clone(), lyrics);
+    fn save(&mut self, song: &SongDescriptor, entry: CacheEntry) -> Result<(), String> {
+        self.cache.borrow_mut().insert(song.clone(), entry);
 
         if self.options.write_eagerly {
             self.write_back()?;
@@ -80,9 +80,9 @@ impl Cache for DevCache {
         Ok(())
     }
 
-    fn load(&self, song: &SongDescriptor) -> Result<Option<String>, String> {
+    fn load(&self, song: &SongDescriptor) -> Result<Option<CacheEntry>, String> {
         match self.cache.borrow().get(song) {
-            Some(lyrics) => Ok(Some(String::from(lyrics))),
+            Some(result) => Ok(Some(result.clone())),
             None => Ok(None)
         }
     }
@@ -131,7 +131,7 @@ mod test {
     // Used to populate test cache -- you probably don't need or want to run this.
     fn populate_cache() {
         let mut cache = HashMap::new();
-        cache.insert(serde_json::to_string(&SongDescriptor { name: "foo".to_string(), artist: "bar".to_string(), uri: None }).unwrap(), "foo bar baz".to_string());
+        cache.insert(serde_json::to_string(&SongDescriptor { name: "foo".to_string(), artist: "bar".to_string(), uri: None }).unwrap(), CacheEntry::Success("foo bar baz".to_string()));
 
         let serialized_cache = serde_json::to_string(&cache).unwrap();
 
@@ -146,7 +146,7 @@ mod test {
         let cache = DevCache::make_cache("./test_data/cached/test_cache_temp.json");
 
         let key = SongDescriptor{ name: "foo".to_string(), artist: "bar".to_string(), uri: None };
-        let value = "foo bar baz".to_string();
+        let value = CacheEntry::Success("foo bar baz".to_string());
 
         assert_eq!(cache.borrow().get(&key).unwrap(), &value);
     }
