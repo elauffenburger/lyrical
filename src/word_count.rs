@@ -4,6 +4,11 @@ use regex;
 
 pub type WordCounts = HashMap<String, i32>;
 
+pub enum SortOrder {
+    Ascending,
+    Descending
+}
+
 // TODO: look through word count results and see if there are some anomalies.
 pub fn count_words<'a>(src: String) -> WordCounts {
     let allowed_word_regex = regex::Regex::new(r"[0-9a-zA-Z]+").unwrap();
@@ -29,6 +34,19 @@ pub fn count_words<'a>(src: String) -> WordCounts {
         })
 }
 
+pub fn sort_word_counts(word_counts: &WordCounts, sort_order: SortOrder) -> Vec<(&String, &i32)> {
+    let mut kvps = word_counts
+        .iter()
+        .collect::<Vec<_>>();
+
+    kvps.sort_by(|a, b| match sort_order {
+        SortOrder::Ascending => a.1.partial_cmp(b.1).unwrap(),
+        SortOrder::Descending => b.1.partial_cmp(a.1).unwrap(),
+    });
+
+    kvps
+}
+
 #[cfg(test)]
 mod test {
     use maplit::hashmap;
@@ -45,7 +63,7 @@ mod test {
     }
 
     #[test]
-    fn can_count_simple_content() {
+    fn count_words_can_count_simple_content() {
         count_test!("hello world i am a str and i am proud", {
             "hello" => 1,
             "world" => 1,
@@ -59,7 +77,7 @@ mod test {
     }
 
     #[test]
-    fn strips_newlines_correctly() {
+    fn count_words_strips_newlines_correctly() {
         count_test!("hello world\ni am a\nstr and i am proud", {
             "hello" => 1,
             "world" => 1,
@@ -73,7 +91,7 @@ mod test {
     }
 
     #[test]
-    fn lowercases_words() {
+    fn count_words_lowercases_words() {
         count_test!("Hello World world hello", {
             "hello" => 2,
             "world" => 2,
@@ -81,7 +99,7 @@ mod test {
     }
 
     #[test]
-    fn strips_commas() {
+    fn count_words_strips_commas() {
         count_test!("Hello, world hello,", {
             "hello" => 2,
             "world" => 1,
@@ -89,27 +107,43 @@ mod test {
     }
 
     #[test]
-    fn strips_dashes() {
+    fn count_words_strips_dashes() {
         count_test!("Hello - world -hello", { "hello" => 2, "world" => 1, });
     }
 
     #[test]
-    fn strips_periods() {
+    fn count_words_strips_periods() {
         count_test!("Hello . world .hello", { "hello" => 2, "world" => 1, });
     }
 
     #[test]
-    fn strips_parens() {
+    fn count_words_strips_parens() {
         count_test!("Hello ( ) (world )hello", { "hello" => 2, "world" => 1, });
     }
     
     #[test]
-    fn strips_bangs() {
+    fn count_words_strips_bangs() {
         count_test!("Hello ! !world hello!", { "hello" => 2, "world" => 1, });
     }
 
     #[test]
-    fn strips_questions() {
+    fn count_words_strips_questions() {
         count_test!("Hello ? ?world hello?", { "hello" => 2, "world" => 1, });
+    }
+
+    #[test]
+    fn sort_word_counts_descending_sorts_descending() {
+        let word_counts = stringify_map_keys(&hashmap!{ "hello" => 1, "world" => 2 });
+        let result = sort_word_counts(&word_counts, SortOrder::Descending);
+
+        assert_eq!(result, vec![(&"world".to_string(), &2i32), (&"hello".to_string(), &1i32)])
+    }
+
+    #[test]
+    fn sort_word_counts_ascending_sorts_ascending() {
+        let word_counts = stringify_map_keys(&hashmap!{ "hello" => 2, "world" => 1 });
+        let result = sort_word_counts(&word_counts, SortOrder::Ascending);
+
+        assert_eq!(result, vec![(&"world".to_string(), &1i32), (&"hello".to_string(), &2i32)])
     }
 }

@@ -15,6 +15,7 @@ mod utils;
 mod tests;
 mod word_count;
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 
@@ -50,7 +51,7 @@ fn main() {
     let mut fetcher = lyrics::make_lyrics_fetcher();
     let word_counts = get_word_counts_for_songs(&mut fetcher, &songs);
 
-    print_word_counts_for_songs(&word_counts);
+    print_word_counts_for_songs(word_counts);
 }
 
 /// Extracts a list of [SongDescriptor]s from args provided in [matches].
@@ -75,27 +76,76 @@ fn get_songs_to_fetch(matches: &ArgMatches) -> Result<Vec<SongDescriptor>, Strin
     Ok(serde_json::from_str::<Vec<SongDescriptor>>(&json).unwrap())
 }
 
-/// Prints word count results in [word_counts] to stdout.
-fn print_word_counts_for_songs(word_counts: &Vec<SongWordCountsResult>) {
-    for result in word_counts {
-        match &result.1 {
-            Ok(count) => println!("song: {:?}\nlyrics: {:?}\n\n", result.0, count),
-            Err(err) => println!("error fetching song {:?}: {:?}\n\n", result.0, err)
-        }
+/// Prints aggregated word count results in [word_counts] to stdout.
+fn print_word_counts_for_songs(word_counts: Vec<SongWordCountsResult>) {
+    // Record the total number of songs for later.
+    let num_songs = word_counts.len() as f32;
+
+    // Split [word_counts] into successes and failures.
+    // [successful_word_counts] contains the actual [WordCounts] and [failures]
+    // contains the [Result<_, _>].
+    let (successful_word_counts, failures) = word_counts
+        .into_iter()
+        .fold((vec![], vec![]), |mut acc, result| {
+            match result.1 {
+                Ok(counts) => {
+                    acc.0.push(counts);
+                },
+                _ => acc.1.push(result)
+            };
+
+            acc
+        });
+
+    let aggregated_word_counts = aggregate_word_counts(successful_word_counts);
+
+    // Collect some metrics for use in reporting failures.
+    let num_failures = failures.len() as f32;
+    let num_successes = num_songs - num_failures;
+    let success_rate = (num_successes / num_songs) * 100f32;
+
+    println!("Failures ({}/{}: {}%):", num_failures, num_songs, success_rate);
+    for failure in &failures {
+        println!("\t{:?}", &failure.0);
     }
+
+    println!("-------");
+
+    // Transform [aggregated_word_counts] into a [Vec] of (&String, i32) sorted
+    // by desc value.
+    let sorted_kvps = word_count::sort_word_counts(&aggregated_word_counts, word_count::SortOrder::Descending);
+
+    println!("Most Common Words:");
+    for kvp in sorted_kvps {
+        println!("{}: {}", kvp.0, kvp.1);
+    }
+
+    println!("\n\nDone!");
 }
 
-/// Gets a [WordCountsResult] for [song] using [fetcher] to fetch lyrics.
-fn get_word_count_for_song<'a, 'b>(fetcher: &'a mut dyn LyricsFetcher, song: &'b SongDescriptor) -> WordCountsResult {
-    fetcher.fetch_lyrics(song)
-        .map(|lyrics| word_count::count_words(lyrics))
+/// Aggregates word counts from [word_counts] into a single [WordCounts] result.
+fn aggregate_word_counts(word_counts: Vec<WordCounts>) -> WordCounts {
+    word_counts.into_iter()
+        .fold(HashMap::new(), |mut acc, result| {
+            for (word, result_count) in result {
+                let old_acc_count = match acc.get(&word) {
+                    Some(count) => *count,
+                    None => 0
+                };
+
+                acc.insert(word, old_acc_count + result_count);
+            }
+
+            acc
+        })
 }
 
 /// Gets a list of [SongWordCountsResult] for [songs] using [fetcher] to fetch lyrics.
 fn get_word_counts_for_songs<'a, 'b>(fetcher: &'a mut dyn LyricsFetcher, songs: &'b Vec<SongDescriptor>) -> Vec<SongWordCountsResult<'b>> {
     songs.iter()
         .map(|song| {
-            let count = get_word_count_for_song(fetcher, song);
+            let count = fetcher.fetch_lyrics(song)
+                .map(|lyrics| word_count::count_words(lyrics));
 
             (song, count)
         })
