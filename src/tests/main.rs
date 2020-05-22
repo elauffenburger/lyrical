@@ -1,6 +1,7 @@
 use crate::*;
 use crate::utils::*;
 
+#[derive(Debug)]
 struct MockLyricsFetcher {
     pub lyrics: String,
 }

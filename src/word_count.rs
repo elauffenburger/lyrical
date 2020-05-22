@@ -9,8 +9,8 @@ pub enum SortOrder {
     Descending
 }
 
-// TODO: look through word count results and see if there are some anomalies.
 pub fn count_words<'a>(src: String) -> WordCounts {
+    // TODO: make these lazy_static.
     let allowed_word_regex = regex::Regex::new(r"[0-9a-zA-Z]+").unwrap();
     let punctuation_regex = regex::Regex::new(r"(\r?\n)|([-.!?,()])").unwrap();
 

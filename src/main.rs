@@ -104,7 +104,7 @@ fn print_word_counts_for_songs(word_counts: Vec<SongWordCountsResult>) {
     let num_successes = num_songs - num_failures;
     let success_rate = (num_successes / num_songs) * 100f32;
 
-    println!("Fetched {}/{} songs; success rate: {}%", num_failures, num_songs, success_rate);
+    println!("Fetched {}/{} songs; success rate: {}%", num_successes, num_songs, success_rate);
     println!();
 
     println!("Failures:");

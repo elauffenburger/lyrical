@@ -1,5 +1,6 @@
 use super::*;
 
+#[derive(Debug)]
 pub struct FailoverLyricsFetcher {
     fetchers: Vec<Box<dyn LyricsFetcher>>
 }
@@ -15,10 +16,10 @@ impl LyricsFetcher for FailoverLyricsFetcher {
         for fetcher in &mut self.fetchers {
             match fetcher.fetch_lyrics(song) {
                 res @ Ok(_) => return res,
-                _ => {}
+                Err(err) => println!("Failed to fetch lyrics for song {:?} using {:?}: {}", song, fetcher, err)
             };
         }
 
-        Err(format!("Failed to fetch lyrics for {:?}", &song))
+        Err(format!("Failed to fetch lyrics for {:?}", song))
     }
 }

@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::rc::Rc;
@@ -116,6 +117,12 @@ impl Cache for DevCache {
             Ok(_) => Ok(()),
             Err(err) => Err(err.to_string())
         }
+    }
+}
+
+impl Debug for DevCache {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        formatter.write_str("DevCache { }")
     }
 }
 
