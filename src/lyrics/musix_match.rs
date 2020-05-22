@@ -8,6 +8,8 @@ const MUSIX_MATCH_SEARCH_URI: &'static str = "https://www.musixmatch.com/search"
 const MUSIX_MATCH_SEARCH_TRACK_URI_SELECTOR: &'static str = "#search-all-results > .main-panel > .box > .box-content .track-card > meta[itemprop=\"url\"]";
 const MUSIX_MATCH_LYRICS_SEGMENT_SELECTOR: &'static str = ".mxm-lyrics__content > span";
 
+const USER_AGENT: &'static str = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:15.0) Gecko/20100101 Firefox/15.0.1";
+
 #[derive(Debug)]
 pub struct MusixMatchLyricsFetcher {}
 
@@ -25,13 +27,22 @@ impl MusixMatchLyricsFetcher {
             _ => {
                 let search_uri = format!("{}/{} {}", MUSIX_MATCH_SEARCH_URI, song.name, song.artist);
 
-                let search_result = reqwest::blocking::get(&search_uri)
+                let client = Self::make_client();
+                let request = client
+                    .get(&search_uri)
+                    .build()
+                    .map_err(|err| format!("Failed to build request: {}", err))
+                    .unwrap();
+
+                let search_result_html = client
+                    .execute(request)
                     .map_err(|err| format!("Failed to retrieve search content for song \"{:?}\": {}", song, err))
                     .and_then(|resp| {
                         resp.text()
                             .map_err(|err| format!("Failed to extract response body when searching for song \"{:?}\": {}", song, err))
-                    })
-                    .map(|html| Html::parse_document(&html))?;
+                    })?;
+                
+                let search_result = Html::parse_document(&search_result_html);
 
                 let result_url_meta_selector = Selector::parse(MUSIX_MATCH_SEARCH_TRACK_URI_SELECTOR)
                     .map_err(|err| format!("Failed to parse selector for musix match search track uri selector for song \"{:?}\": {:?}", song, err))?;
@@ -43,10 +54,23 @@ impl MusixMatchLyricsFetcher {
                 
                 match uri {
                     Some(uri) => Ok(format!("{}{}", MUSIX_MATCH_URI, uri)),
-                    None => Err(format!("Failed to find a search result for song \"{:?}\"", song))
+                    None => Err(format!("Failed to find a search result for song \"{:?}\" in response: {}", song, search_result_html))
                 }
             }
         }
+    }
+
+    fn make_client() -> reqwest::blocking::Client {
+        reqwest::blocking::Client::builder()
+            .default_headers({
+                let mut headers = reqwest::header::HeaderMap::new();
+                headers.insert(reqwest::header::USER_AGENT, reqwest::header::HeaderValue::from_static(USER_AGENT));
+
+                headers
+            })
+            .build()
+            .map_err(|err| format!("Failed to build Client: {}", err))
+            .unwrap()
     }
 }
 
@@ -54,7 +78,14 @@ impl LyricsFetcher for MusixMatchLyricsFetcher {
     fn fetch_lyrics(&mut self, song: &SongDescriptor) -> Result<String, String> {
         let uri = self.get_song_uri(song)?;
 
-        let content = reqwest::blocking::get(&uri)
+        let client = Self::make_client();
+        let request = client
+            .get(&uri)
+            .build()
+            .map_err(|err| format!("Failed to build request: {}", err))
+            .unwrap();
+
+        let content = client.execute(request)
             .and_then(|resp| resp.text())
             .map(|html| Html::parse_document(&html))
             .map_err(|err| format!("Failed to parse song lyrics for song \"{:?}\": {}", song, err))?;
