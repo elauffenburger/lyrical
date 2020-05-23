@@ -28,7 +28,7 @@ type WordCountsResult = Result<WordCounts, String>;
 type SongWordCountsResult<'a> = (&'a SongDescriptor, WordCountsResult);
 
 fn main() {
-    let matches = App::new("Lyrical")
+    let app = App::new("Lyrical")
         .version("0.1")
         .author("Eric Lauffenburger <elauffenburger@gmail.com>")
         .arg(Arg::with_name("json_file")
@@ -36,25 +36,33 @@ fn main() {
             .long("json-file")
             .value_name("JSON_FILE")
             .takes_value(true)
-            .conflicts_with("json")
             .help("Sets the json file to use as input"))
         .arg(Arg::with_name("json")
             .short("j")
             .long("json")
             .value_name("JSON")
-            .conflicts_with("json_file")
             .help("Sets the json to use as input"))
         .group(ArgGroup::with_name("json_source")
             .args(&["json_file", "json"])
-            .required(true))
-        .get_matches();
+            .required(true));
 
-    let songs = get_songs_to_fetch(&matches).unwrap();
+    let mut help = vec![];
+    app.write_help(&mut help).unwrap();
+    let help = std::str::from_utf8(&help).unwrap();
+    
+    match get_songs_to_fetch(&app.get_matches()) {
+        Ok(songs) => {
+            let mut fetcher = lyrics::make_lyrics_fetcher();
+            let word_counts = get_word_counts_for_songs(&mut fetcher, &songs);
 
-    let mut fetcher = lyrics::make_lyrics_fetcher();
-    let word_counts = get_word_counts_for_songs(&mut fetcher, &songs);
+            print_word_counts_for_songs(word_counts);
+        },
+        Err(err) => {
+            println!("Error while parsing arguments: {}", err);
 
-    print_word_counts_for_songs(word_counts);
+            println!("{}", help);
+        }
+    };
 }
 
 /// Extracts a list of [SongDescriptor]s from args provided in [matches].
@@ -71,12 +79,23 @@ fn get_songs_to_fetch(matches: &ArgMatches) -> Result<Vec<SongDescriptor>, Strin
 
                             json
                         })
+                        .map_err(|err| format!("Failed to read file: {}", err))
                         .unwrap()
                 )
         )
         .unwrap();
+    
+    serde_json::from_str::<Vec<SongDescriptor>>(&json)
+        .map_err(|err| {
+            let example = vec![
+                SongDescriptor{ name: "foo".into(), artist: "bar".into(), uri:  None }
+            ];
 
-    Ok(serde_json::from_str::<Vec<SongDescriptor>>(&json).unwrap())
+            format!(
+                "Failed to parse provided json ({}): please make sure it's in the following format: {}", 
+                err,
+                serde_json::to_string(&example).unwrap())
+        })
 }
 
 /// Prints aggregated word count results in [word_counts] to stdout.
