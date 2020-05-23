@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 
-use clap::{Arg, App, ArgMatches};
+use clap::{Arg, ArgGroup, App, ArgMatches};
 
 use lyrics::{LyricsFetcher, SongDescriptor};
 use word_count::WordCounts;
@@ -28,7 +28,7 @@ type WordCountsResult = Result<WordCounts, String>;
 type SongWordCountsResult<'a> = (&'a SongDescriptor, WordCountsResult);
 
 fn main() {
-    let matches = App::new("Lyrics")
+    let matches = App::new("Lyrical")
         .version("0.1")
         .author("Eric Lauffenburger <elauffenburger@gmail.com>")
         .arg(Arg::with_name("json_file")
@@ -44,6 +44,9 @@ fn main() {
             .value_name("JSON")
             .conflicts_with("json_file")
             .help("Sets the json to use as input"))
+        .group(ArgGroup::with_name("json_source")
+            .args(&["json_file", "json"])
+            .required(true))
         .get_matches();
 
     let songs = get_songs_to_fetch(&matches).unwrap();
