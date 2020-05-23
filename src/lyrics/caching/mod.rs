@@ -1,8 +1,11 @@
+mod dev_cache;
+
 use std::fmt::Debug;
 
-use super::*;
+use serde::{Deserialize, Serialize};
 
-pub mod dev_cache;
+use super::*;
+pub use dev_cache::*;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub enum CacheEntry {
@@ -18,21 +21,21 @@ pub trait Cache: Debug {
 
 #[derive(Default, Builder, Debug)]
 #[builder(setter(into))]
-pub struct CachedLyricsFetcherOptions {
+pub struct CachingLyricsFetcherOptions {
     cache_failures: bool,
     retry_cached_failures: bool,
 }
 
 #[derive(Debug)]
-pub struct CachedLyricsFetcher<T: LyricsFetcher, C: Cache> {
+pub struct CachingLyricsFetcher<T: LyricsFetcher, C: Cache> {
     cache: C, 
     fallback: T,
-    options: CachedLyricsFetcherOptions
+    options: CachingLyricsFetcherOptions
 }
 
-impl<T: LyricsFetcher, C: Cache> CachedLyricsFetcher<T, C> {
-    pub fn new(fallback: T, cache: C, options: CachedLyricsFetcherOptions) -> Self {
-        CachedLyricsFetcher { cache, fallback, options }
+impl<T: LyricsFetcher, C: Cache> CachingLyricsFetcher<T, C> {
+    pub fn new(fallback: T, cache: C, options: CachingLyricsFetcherOptions) -> Self {
+        CachingLyricsFetcher { cache, fallback, options }
     }
 
     fn fetch_lyrics_using_fallback(&mut self, song: &SongDescriptor) -> Result<String, String> {
@@ -61,7 +64,7 @@ impl<T: LyricsFetcher, C: Cache> CachedLyricsFetcher<T, C> {
     }
 }
 
-impl<T: LyricsFetcher, C: Cache> LyricsFetcher for CachedLyricsFetcher<T, C> {
+impl<T: LyricsFetcher, C: Cache> LyricsFetcher for CachingLyricsFetcher<T, C> {
     fn fetch_lyrics(&mut self, song: &SongDescriptor) -> Result<String, String> {
         // Try to load the lyrics from cache.
         match self.cache.load(song)? {
@@ -85,11 +88,11 @@ impl<T: LyricsFetcher, C: Cache> LyricsFetcher for CachedLyricsFetcher<T, C> {
     }
 }
 
-impl<T: LyricsFetcher, C: Cache> Drop for CachedLyricsFetcher<T, C> {
+impl<T: LyricsFetcher, C: Cache> Drop for CachingLyricsFetcher<T, C> {
     fn drop(&mut self) {
         // Make sure we write the cache back on drop.
         match self.cache.write_back() {
-            Err(err) => println!("Something went wrong while writing cache on CachedLyricsFetcher drop: {}", err),
+            Err(err) => println!("Something went wrong while writing cache on CachingLyricsFetcher drop: {}", err),
             _ => {}
         }
     }

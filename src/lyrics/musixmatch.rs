@@ -10,12 +10,19 @@ const MUSIX_MATCH_LYRICS_SEGMENT_SELECTOR: &'static str = ".mxm-lyrics__content 
 
 const USER_AGENT: &'static str = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:15.0) Gecko/20100101 Firefox/15.0.1";
 
-#[derive(Debug)]
-pub struct MusixMatchLyricsFetcher {}
+#[derive(Builder, Clone, Debug)]
+pub struct MusixMatchLyricsFetcherOptions {
+    proxy: Option<String>
+}
+
+#[derive(Clone, Debug)]
+pub struct MusixMatchLyricsFetcher {
+    options: MusixMatchLyricsFetcherOptions,
+}
 
 impl MusixMatchLyricsFetcher {
-    pub fn new() -> Self {
-        MusixMatchLyricsFetcher{}
+    pub fn new(options: MusixMatchLyricsFetcherOptions) -> Self {
+        MusixMatchLyricsFetcher{ options }
     }
 
     fn get_song_uri(&self, song: &SongDescriptor) -> Result<String, String> {
@@ -27,7 +34,7 @@ impl MusixMatchLyricsFetcher {
             _ => {
                 let search_uri = format!("{}/{} {}", MUSIX_MATCH_SEARCH_URI, song.name, song.artist);
 
-                let client = Self::make_client();
+                let client = self.make_client();
                 let request = client
                     .get(&search_uri)
                     .build()
@@ -60,14 +67,21 @@ impl MusixMatchLyricsFetcher {
         }
     }
 
-    fn make_client() -> reqwest::blocking::Client {
-        reqwest::blocking::Client::builder()
+    fn make_client(&self) -> reqwest::blocking::Client {
+        let builder = reqwest::blocking::Client::builder()
             .default_headers({
                 let mut headers = reqwest::header::HeaderMap::new();
                 headers.insert(reqwest::header::USER_AGENT, reqwest::header::HeaderValue::from_static(USER_AGENT));
 
                 headers
-            })
+            });
+
+        let builder = match &self.options.proxy {
+            Some(proxy) => builder.proxy(reqwest::Proxy::http(proxy).unwrap()),
+            None => builder
+        };
+
+        builder
             .build()
             .map_err(|err| format!("Failed to build Client: {}", err))
             .unwrap()
@@ -78,17 +92,18 @@ impl LyricsFetcher for MusixMatchLyricsFetcher {
     fn fetch_lyrics(&mut self, song: &SongDescriptor) -> Result<String, String> {
         let uri = self.get_song_uri(song)?;
 
-        let client = Self::make_client();
+        let client = self.make_client();
         let request = client
             .get(&uri)
             .build()
             .map_err(|err| format!("Failed to build request: {}", err))
             .unwrap();
 
-        let content = client.execute(request)
+        let content_html = client.execute(request)
             .and_then(|resp| resp.text())
-            .map(|html| Html::parse_document(&html))
-            .map_err(|err| format!("Failed to parse song lyrics for song \"{:?}\": {}", song, err))?;
+            .map_err(|err| format!("Failed to extract html from response: {}", err))?;
+        
+        let content = Html::parse_document(&content_html);
 
         let segments_selector = Selector::parse(MUSIX_MATCH_LYRICS_SEGMENT_SELECTOR)
             .map_err(|err| format!("failed to parse MusixMatch lyrics segment selector: {:?}", err))?;
@@ -103,7 +118,7 @@ impl LyricsFetcher for MusixMatchLyricsFetcher {
 
         match lyrics {
             Some(lyrics) => Ok(lyrics),
-            None => Err(format!("Something went unexpected wrong while fetching lyrics for song \"{:?}\"", song))
+            None => Err(format!("Something went unexpectedly wrong while fetching lyrics for song \"{:?}\" with html: {}", song, &content_html))
         }
     }
 }
@@ -115,11 +130,17 @@ mod test {
     #[test]
     #[ignore]
     pub fn integration_can_fetch_music_match_song_uri_without_explicit_uri() {
-        let result = MusixMatchLyricsFetcher::new().get_song_uri(&SongDescriptor{
-            name: "House of fire".to_string(),
-            artist: "Dave Rodgers".to_string(),
-            uri: None
-        });
+        let options = MusixMatchLyricsFetcherOptionsBuilder::default()
+            .proxy(None)
+            .build()
+            .unwrap();
+
+        let result = MusixMatchLyricsFetcher::new(options)
+            .get_song_uri(&SongDescriptor{
+                name: "House of fire".to_string(),
+                artist: "Dave Rodgers".to_string(),
+                uri: None
+            });
 
         assert_eq!(result, Ok("https://www.musixmatch.com/lyrics/Dave-Rodgers/The-House-of-Fire".to_string()));
     }
@@ -127,11 +148,17 @@ mod test {
     #[test]
     #[ignore]
     pub fn integration_can_fetch_music_match_song_with_explicit_uri() {
-        let result = MusixMatchLyricsFetcher::new().fetch_lyrics(&SongDescriptor{
-            name: String::new(),
-            artist: String::new(),
-            uri: Some(SongUri::MusixMatchUri("https://www.musixmatch.com/lyrics/Dave-Rodgers/The-House-of-Fire".to_string()))
-        });
+        let options = MusixMatchLyricsFetcherOptionsBuilder::default()
+            .proxy(None)
+            .build()
+            .unwrap();
+
+        let result = MusixMatchLyricsFetcher::new(options)
+            .fetch_lyrics(&SongDescriptor{
+                name: String::new(),
+                artist: String::new(),
+                uri: Some(SongUri::MusixMatchUri("https://www.musixmatch.com/lyrics/Dave-Rodgers/The-House-of-Fire".to_string()))
+            });
 
         assert_eq!(result, Ok("
 I'm gonna play the real life

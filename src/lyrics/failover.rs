@@ -16,6 +16,7 @@ impl LyricsFetcher for FailoverLyricsFetcher {
         for fetcher in &mut self.fetchers {
             match fetcher.fetch_lyrics(song) {
                 res @ Ok(_) => return res,
+                // TODO: make printing this configurable via args.
                 Err(err) => println!("Failed to fetch lyrics for song {:?} using {:?}: {}", song, fetcher, err)
             };
         }
