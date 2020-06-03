@@ -5,8 +5,8 @@ FROM rust:1.43 AS build
 WORKDIR /usr/src/
 
 # Copy all files to working directory.
-COPY lyrical-api/Cargo.toml lyrical-api/Cargo.lock lyrical-api/build_info.json ./lyrical-api/
-COPY lyrical-api/src ./lyrical-api/src/
+COPY lyrical-cli/Cargo.toml lyrical-cli/Cargo.lock ./lyrical-cli/
+COPY lyrical-cli/src ./lyrical-cli/src/
 COPY liblyrical ./liblyrical/
 
 # Debug info.
@@ -15,13 +15,13 @@ RUN rustc --version
 RUN ls -Rla
 
 # Move into working dir.
-WORKDIR /usr/src/lyrical-api
+WORKDIR /usr/src/lyrical-cli
 
 # Build the binary.
 RUN cargo build --release
 
 # Run binary on scratch image.
 FROM alpine
-COPY --from=build /usr/src/lyrical-api/target/release/lyrical-api ./
+COPY --from=build /usr/src/lyrical-cli/target/release/lyrical-cli ./
 RUN ls
-CMD ["./lyrical-api"]
+CMD ["./lyrical-cli"]
