@@ -1,0 +1,12 @@
+[package]
+name = "lyrical-cli"
+version = "0.1.0"
+authors = ["Eric <elauffenburger@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+clap = "2.33.1"
+liblyrical = { path = "../liblyrical" }
+maplit = "1.0.2"
+serde = { version = "1.0.110", features = ["derive"] }
+serde_json = "1.0.53"

@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lyrical-api-deployment
+  labels:
+    app: lyrical
+    service: lyrical-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lyrical
+      service: lyrical-api
+  template:
+    metadata:
+      labels:
+        app: lyrical
+        service: lyrical-api
+    spec:
+      containers:
+      - name: lyrical-api
+        image: gcr.io/lyrical-278401/lyrical-api:latest
+        ports:
+        - containerPort: 8080

@@ -1,0 +1,25 @@
+# IMPORTANT: Please build from the root monorepo directory!
+
+# Use rust image as build image.
+FROM rust:1.43 AS build
+WORKDIR /usr/src/
+
+# Copy all files to working directory.
+COPY lyrical-fe/Cargo.toml lyrical-fe/Cargo.lock lyrical-fe/build_info.json ./lyrical-fe/
+COPY lyrical-fe/src ./lyrical-fe/src/
+
+# Debug info.
+RUN cargo --version
+RUN rustc --version
+RUN ls -Rla
+
+# Move into working dir.
+WORKDIR /usr/src/lyrical-fe
+
+# Build the binary.
+RUN cargo build --release
+
+# Run binary on scratch image.
+FROM scratch
+COPY --from=build /usr/src/lyrical-fe/target/release/lyrical-fe ./
+CMD ["./lyrical-fe"]

@@ -1,0 +1,13 @@
+[package]
+name = "lyrical-api"
+version = "0.1.0"
+authors = ["Eric <elauffenburger@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+liblyrical = { path = "../liblyrical" }
+serde = "1.0.110"
+tokio = "0.2.21"
+warp = "0.2.3"

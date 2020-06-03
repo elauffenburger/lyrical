@@ -1,5 +1,5 @@
 use crate::*;
-use crate::utils::*;
+use liblyrical::utils::{stringify_map_keys};
 
 #[derive(Debug)]
 struct MockLyricsFetcher {

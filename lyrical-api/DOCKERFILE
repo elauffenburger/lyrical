@@ -1,0 +1,27 @@
+# IMPORTANT: Please build from the root monorepo directory!
+
+# Use rust image as build image.
+FROM rust:1.43 AS build
+WORKDIR /usr/src/
+
+# Copy all files to working directory.
+COPY lyrical-api/Cargo.toml lyrical-api/Cargo.lock lyrical-api/build_info.json lyrical-api/entrypoint.sh ./lyrical-api/
+COPY lyrical-api/src ./lyrical-api/src/
+COPY liblyrical ./liblyrical/
+
+# Debug info.
+RUN cargo --version
+RUN rustc --version
+RUN ls -Rla
+
+# Move into working dir.
+WORKDIR /usr/src/lyrical-api
+
+# Build the binary.
+RUN cargo build --release
+
+# Run binary on scratch image.
+FROM alpine
+COPY --from=build /usr/src/lyrical-api/target/release/lyrical-api ./
+COPY --from=build /usr/src/lyrical-api/entrypoint.sh ./
+CMD ["./lyrical-api"]

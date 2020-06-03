@@ -1,19 +1,11 @@
 extern crate clap;
-#[macro_use]
-extern crate derive_builder;
+extern crate liblyrical;
 #[macro_use]
 extern crate maplit;
-extern crate regex;
-extern crate reqwest;
-extern crate scraper;
 extern crate serde;
-extern crate tokio;
 
-mod lyrics;
-mod utils;
 #[cfg(test)]
 mod tests;
-mod word_count;
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -21,8 +13,10 @@ use std::io::Read;
 
 use clap::{Arg, ArgGroup, App, ArgMatches};
 
-use lyrics::{LyricsFetcher, SongDescriptor};
-use word_count::WordCounts;
+use liblyrical::lyrics;
+use liblyrical::lyrics::{LyricsFetcher, SongDescriptor};
+use liblyrical::word_count;
+use liblyrical::word_count::{WordCounts};
 
 type WordCountsResult = Result<WordCounts, String>;
 type SongWordCountsResult<'a> = (&'a SongDescriptor, WordCountsResult);
